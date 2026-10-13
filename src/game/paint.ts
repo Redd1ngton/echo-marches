@@ -1,6 +1,6 @@
 import { cellOf, tileChar } from "./maps";
 import { HEROES } from "./content";
-import { G, TILE, addYaw, addZoom, attackReach, clickWorld, fieldStrike, lookHeading, mobUnder, questHot, setAtkHold, step } from "./logic";
+import { G, TILE, addYaw, addZoom, approachSpot, attackReach, clickWorld, fieldStrike, lookHeading, mobUnder, questHot, setAtkHold, spotTaken, step } from "./logic";
 
 const SPRITES = [
   "sorceress",
@@ -59,7 +59,14 @@ export function holdClient(cx: number, cy: number, down: boolean) {
 }
 
 export function tapClient(cx: number, cy: number) {
-  const p = worldFromScreen(cx - viewBox.left, cy - viewBox.top, viewBox.w, viewBox.h);
+  const sx = cx - viewBox.left;
+  const sy = cy - viewBox.top;
+  const id = spotUnderScreen(sx, sy, viewBox.w, viewBox.h);
+  if (id) {
+    approachSpot(id);
+    return;
+  }
+  const p = worldFromScreen(sx, sy, viewBox.w, viewBox.h);
   clickWorld(p.x, p.y);
 }
 
@@ -123,6 +130,11 @@ export function startPaint(canvas: HTMLCanvasElement) {
     const rect = canvas.getBoundingClientRect();
     const sx = e.clientX - rect.left;
     const sy = e.clientY - rect.top;
+    const id = spotUnderScreen(sx, sy, rect.width, rect.height);
+    if (id && !shifted) {
+      approachSpot(id);
+      return;
+    }
     const p = worldFromScreen(sx, sy, rect.width, rect.height);
     clickWorld(p.x, p.y);
     if (shifted && !G.lockTarget) fieldStrike(false, true);
@@ -192,6 +204,24 @@ function project(wx: number, wy: number, cam: { x: number; y: number }) {
     x: (s.x - s.y) * (ISO_W / 2 / TILE),
     y: (s.x + s.y) * (ISO_H / 2 / TILE),
   };
+}
+
+function spotUnderScreen(sx: number, sy: number, viewW: number, viewH: number) {
+  const cam = camera(viewW, viewH);
+  let best = "";
+  let bd = 46;
+  for (const s of G.map.spots) {
+    if (s.kind === "fight" || spotTaken(s) || G.folk.some((f) => f.spot === s.id)) continue;
+    const p = project((s.x + 0.5) * TILE, (s.y + 0.92) * TILE, cam);
+    const zx = viewW / 2 + p.x * cam.zoom;
+    const zy = viewH / 2 + p.y * cam.zoom;
+    const d = Math.min(Math.hypot(zx - sx, zy - 28 * cam.zoom - sy), Math.hypot(zx - sx, zy - sy));
+    if (d < bd) {
+      bd = d;
+      best = s.id;
+    }
+  }
+  return best;
 }
 
 function drawStrikeZone(ctx: CanvasRenderingContext2D, at: (wx: number, wy: number) => { x: number; y: number }, reach: number) {
@@ -458,7 +488,7 @@ function draw(ctx: CanvasRenderingContext2D, viewW: number, viewH: number) {
       });
     }
     for (const s of G.map.spots) {
-      if (s.kind === "fight") continue;
+      if (s.kind === "fight" || spotTaken(s)) continue;
       if (G.folk.some((f) => f.spot === s.id)) continue;
       const fx = (s.x + 0.5) * TILE;
       const fy = (s.y + 0.92) * TILE;

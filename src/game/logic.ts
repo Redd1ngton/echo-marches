@@ -749,6 +749,35 @@ function route(tx: number, ty: number) {
   return out;
 }
 
+export function spotTaken(s: Spot): boolean {
+  const r = s.ref ?? "";
+  if (s.kind === "chest") return G.opened.includes(s.id);
+  if (r === "ribbon") return !!G.flags["ribbon-found"] || G.opened.includes(s.id);
+  if (r === "boot" || r === "tract-boot") return !!G.flags["boot-found"] || G.opened.includes(s.id);
+  if (r === "perch") return !!G.flags["owl-feather"] || G.opened.includes(s.id);
+  if (r === "wax-niche") return (G.quests["sq-bell-order"] ?? 0) >= 999 || G.opened.includes(s.id);
+  if (r === "light") return G.opened.includes(s.id);
+  if (r.startsWith("trace-")) {
+    const q = `sq-${r.slice(6)}-trace`;
+    return (G.quests[q] ?? 0) >= 999 || G.opened.includes(s.id);
+  }
+  return false;
+}
+
+function pickupSpot(s: Spot) {
+  const r = s.ref ?? "";
+  return s.kind === "chest" || r === "light" || r === "ribbon" || r === "boot" || r === "tract-boot" || r === "perch" || r === "wax-niche" || r.startsWith("trace-");
+}
+
+let touchSpot = "";
+
+function claimPickup(took: boolean) {
+  if (!took) return;
+  const s = G.map.spots.find((p) => p.id === touchSpot);
+  if (!s || !pickupSpot(s) || s.kind === "chest") return;
+  if (!G.opened.includes(s.id)) G.opened.push(s.id);
+}
+
 export function questHot(ref?: string) {
   const map: Record<string, string[]> = {
     marta: ["q-road", "q-back", "q-lights"],
@@ -771,6 +800,7 @@ export function nearbySpot(): Spot | null {
   let best: Spot | null = null;
   let bd = 99;
   for (const s of G.map.spots) {
+    if (spotTaken(s)) continue;
     const d = Math.max(Math.abs(s.x - t.x), Math.abs(s.y - t.y));
     if (d <= 2 && d < bd) {
       best = s;
@@ -856,9 +886,14 @@ export function interact() {
 
 function openSpot(spot: Spot) {
   if (G.mode !== "explore") return;
+  touchSpot = spot.id;
+  if (spotTaken(spot)) {
+    log("Тут уже порожньо.");
+    bump();
+    return;
+  }
   if (spot.ref) G.flags[`heard-${spot.ref}`] = 1;
   if (spot.kind === "talk" || spot.kind === "stone") {
-    if (spot.ref === "light" && !G.opened.includes(spot.id)) G.opened.push(spot.id);
     G.talkId = talkFor(spot);
     G.talkExtra = "";
     G.mode = "talk";
@@ -929,6 +964,7 @@ function openSpot(spot: Spot) {
       addItem(L, "pot", 1);
       if (tier >= 2 && Math.random() < 0.45) addItem(L, tier >= 5 ? "a-plate2" : "t-cloak", 1);
       log(`У скрині ${gold} монет і настій.`);
+      G.floats.push({ x: (spot.x + 0.5) * TILE, y: (spot.y + 0.4) * TILE, text: `+${gold}`, color: "#e7d7a1", t: 0 });
     }
     persist();
     bump();
@@ -1108,6 +1144,7 @@ function applyChoice(c: Choice) {
     }
   }
   if (c.end || !c.to) {
+    claimPickup(!!(c.flag || c.item || c.quest?.endsWith(":999")));
     G.talkId = null;
     const pending = G.party.find((p) => nextGate(p));
     G.mode = G.epilogue ? "epilogue" : pending ? "path" : "explore";
@@ -2358,6 +2395,47 @@ function tickMobs(dt: number) {
   }
 }
 
+export function approachSpot(id: string) {
+  const spot = G.map.spots.find((s) => s.id === id);
+  if (!spot || G.mode !== "explore" || spot.kind === "fight" || spotTaken(spot)) return;
+  const t = tileOf(G.x, G.y);
+  const near = Math.max(Math.abs(spot.x - t.x), Math.abs(spot.y - t.y)) <= 2;
+  if (near) {
+    G.pending = "";
+    G.path = [];
+    openSpot(spot);
+    return;
+  }
+  let tx = spot.x;
+  let ty = spot.y;
+  if (blocked(G.map, tx, ty, G.flags)) {
+    for (const [dx, dy] of [
+      [0, 1],
+      [0, -1],
+      [1, 0],
+      [-1, 0],
+      [1, 1],
+      [-1, 1],
+      [1, -1],
+      [-1, -1],
+    ] as const) {
+      if (!blocked(G.map, tx + dx, ty + dy, G.flags)) {
+        tx += dx;
+        ty += dy;
+        break;
+      }
+    }
+  }
+  G.pending = spot.id;
+  G.hunt = false;
+  G.lockTarget = false;
+  G.path = route(tx, ty);
+  if (!G.path.length && Math.max(Math.abs(spot.x - t.x), Math.abs(spot.y - t.y)) > 2) {
+    log("Не дістатись. Підійди ближче й натисни Дію.");
+  } else log(`${spot.label}. Підходжу.`);
+  bump();
+}
+
 export function clickWorld(wx: number, wy: number) {
   const tx = Math.floor(wx / TILE);
   const ty = Math.floor(wy / TILE);
@@ -2422,37 +2500,15 @@ export function clickWorld(wx: number, wy: number) {
       return;
     }
     const folk = G.folk.find((f) => onBody(f.x, f.y, wx, wy));
-    const spot = folk ? G.map.spots.find((s) => s.id === folk.spot) : G.map.spots.find((s) => Math.abs((s.x + 0.5) * TILE - wx) < 28 && Math.abs((s.y + 0.7) * TILE - wy) < 36);
-    if (spot && spot.kind !== "fight") {
-      const t = tileOf(G.x, G.y);
-      const near = Math.max(Math.abs(spot.x - t.x), Math.abs(spot.y - t.y)) <= 2;
-      if (near) {
-        G.pending = "";
-        G.path = [];
-        openSpot(spot);
-      } else {
-        let tx = spot.x;
-        let ty = spot.y;
-        if (blocked(G.map, tx, ty, G.flags)) {
-          for (const [dx, dy] of [
-            [0, 1],
-            [0, -1],
-            [1, 0],
-            [-1, 0],
-          ] as const) {
-            if (!blocked(G.map, tx + dx, ty + dy, G.flags)) {
-              tx += dx;
-              ty += dy;
-              break;
-            }
-          }
-        }
-        G.pending = spot.id;
-        G.hunt = false;
-        G.path = route(tx, ty);
-        log(`${spot.label}. Підходжу.`);
-        bump();
-      }
+    const spot =
+      (folk ? G.map.spots.find((s) => s.id === folk.spot) : null) ??
+      G.map.spots
+        .filter((s) => s.kind !== "fight" && !spotTaken(s))
+        .map((s) => ({ s, d: Math.hypot((s.x + 0.5) * TILE - wx, (s.y + 0.45) * TILE - wy) }))
+        .filter((h) => h.d < 96)
+        .sort((a, b) => a.d - b.d)[0]?.s;
+    if (spot && spot.kind !== "fight" && !spotTaken(spot)) {
+      approachSpot(spot.id);
       return;
     }
     if (!canWalk(tx, ty)) return;
