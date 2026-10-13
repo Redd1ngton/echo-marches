@@ -47,6 +47,9 @@ import {
   planGuard,
   planItem,
   planWait,
+  raiseSkill,
+  skillRank,
+  rankedPower,
   questHot,
   questView,
   regionUnlocked,
@@ -762,7 +765,7 @@ function FieldBar() {
               name={sk.name}
               kind={sk.kind}
               cost={String(sk.focus)}
-              mark={cd > 0 ? `${cd.toFixed(1)}` : sk.kind === "heal" ? `+${blowDamage(sk.power, L.stats[sk.stat])}` : sk.power ? `${blowDamage(sk.power, L.stats[sk.stat])}` : statusName(sk.status?.id) || "ефект"}
+              mark={cd > 0 ? `${cd.toFixed(1)}` : sk.kind === "heal" ? `+${blowDamage(rankedPower(L, sk.power, sk.id), L.stats[sk.stat])}` : sk.power ? `${blowDamage(rankedPower(L, sk.power, sk.id), L.stats[sk.stat])}` : statusName(sk.status?.id) || "ефект"}
               on={false}
               dim={cd > 0 || L.focus < sk.focus}
               onClick={() => fieldCast(sk.id)}
@@ -888,13 +891,16 @@ function Panel({ title, children, onClose }: { title: string; children: ReactNod
 
 function HeroSheet({ hero }: { hero: Hero }) {
   const pending = nextGate(hero);
+  skillRank(hero, hero.known[0] ?? "");
   return (
     <div>
       <p className="text-sm text-mist">
         Рівень {hero.level} · досвід {hero.xp}/{xpNeed(hero.level)} · монети {hero.gold}
         {hero.merc ? " · найманець" : ""}
       </p>
-      <p className="mt-1 text-xs text-mist">SP {hero.focus}/{hero.maxFocus}</p>
+      <p className="mt-1 text-xs text-mist">
+        SP {hero.focus}/{hero.maxFocus} · очки вмінь {hero.skillPts}
+      </p>
       <div className="mt-3 flex items-end gap-3">
         <img src={`/game/portraits/${hero.hero}.png`} alt="" className="h-28 w-20 object-cover object-top" />
         <div className="grid flex-1 grid-cols-1 gap-2">
@@ -935,28 +941,40 @@ function HeroSheet({ hero }: { hero: Hero }) {
       )}
       {pending && <p className="mt-2 text-sm text-brass">Відкрита професія на {pending}. Вона чекає в окремому вікні після бою.</p>}
       <h3 className="mt-4 font-display text-xl">Панель умінь</h3>
-      <p className="text-xs text-mist">Натисни вміння, щоб поставити його на дугу. Активні рівно чотири. Цифра — слот, SP — ціна, сила — наскільки боляче.</p>
+      <p className="text-xs text-mist">Натисни вміння, щоб поставити його на дугу. Плюс піднімає ранг до 5: сильніше б'є і трохи швидше холоне. Очко вміння приходить з кожним рівнем.</p>
       <div className="mt-1 flex flex-col gap-1">
         {hero.known.map((id) => {
           const sk = skillById(hero, id);
           const on = hero.loadout.includes(id);
           const slot = hero.loadout.indexOf(id) + 1;
           const aim = sk?.target === "enemy" ? "ворог" : sk?.target === "self" ? "на себе" : "союзник";
+          const rank = skillRank(hero, id);
+          const shown = sk ? rankedPower(hero, sk.power, id) : 0;
           return (
-            <button key={id} className={`flex min-h-11 items-center gap-2 border px-2 text-left text-sm ${on ? "border-brass bg-brass/10" : "border-line"}`} onClick={() => setLoadout(hero.uid, id)}>
-              {SKILL_ICON[id] !== undefined && <img src={`/game/skills/${SKILL_ICON[id]}.png`} alt="" className="h-9 w-9 object-cover" />}
-              <span>
-                {on ? `${slot}. ` : ""}
-                {sk?.name}
-                <span className="block text-xs text-mist">
-                  SP {sk?.focus} · {aim}
-                  {sk?.range ? ` · ${sk.range} клітин` : ""}
-                  {sk?.power ? ` · сила ${sk.power}` : ""}
-                  {sk?.status ? " · є ефект" : ""}
+            <div key={id} className={`flex items-stretch gap-1 border ${on ? "border-brass bg-brass/10" : "border-line"}`}>
+              <button className="flex min-h-11 flex-1 items-center gap-2 px-2 text-left text-sm" onClick={() => setLoadout(hero.uid, id)}>
+                {SKILL_ICON[id] !== undefined && <img src={`/game/skills/${SKILL_ICON[id]}.png`} alt="" className="h-9 w-9 object-cover" />}
+                <span>
+                  {on ? `${slot}. ` : ""}
+                  {sk?.name}
+                  <span className="block text-xs text-mist">
+                    Ранг {rank}/5 · SP {sk?.focus} · {aim}
+                    {sk?.range ? ` · ${sk.range} клітин` : ""}
+                    {shown ? ` · сила ${shown}` : ""}
+                    {sk?.status ? " · є ефект" : ""}
+                  </span>
+                  <span className="block text-xs text-parchment/80">{sk?.blurb}</span>
                 </span>
-                <span className="block text-xs text-parchment/80">{sk?.blurb}</span>
-              </span>
-            </button>
+              </button>
+              <button
+                type="button"
+                disabled={hero.skillPts <= 0 || rank >= 5}
+                className="min-h-11 min-w-11 shrink-0 border-l border-brass px-2 text-lg disabled:opacity-30"
+                onClick={() => raiseSkill(hero.uid, id)}
+              >
+                +
+              </button>
+            </div>
           );
         })}
       </div>

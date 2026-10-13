@@ -61,6 +61,8 @@ export type Hero = {
   paths: string[];
   merc: boolean;
   gold: number;
+  skillPts: number;
+  ranks: Record<string, number>;
 };
 
 export type StatusInst = { id: StatusId; turns: number; pot: number; src?: string };
@@ -401,6 +403,8 @@ function makeHero(hero: HeroId, merc: boolean, level: number): Hero {
     paths: [],
     merc,
     gold: merc ? 0 : 24,
+    skillPts: Math.max(0, level - 1),
+    ranks: Object.fromEntries(known.map((id) => [id, 1])),
   };
   recalc(h);
   h.hp = h.maxHp;
@@ -425,14 +429,49 @@ function takeItem(h: Hero, id: string) {
   return true;
 }
 
+export function ensureGrowth(h: Hero) {
+  if (!h.ranks) h.ranks = {};
+  for (const id of h.known) if (!h.ranks[id]) h.ranks[id] = 1;
+  if (typeof h.skillPts !== "number") h.skillPts = Math.max(0, h.level - 1);
+}
+
+export function skillRank(h: Hero, id: string) {
+  ensureGrowth(h);
+  return Math.max(1, Math.min(5, h.ranks[id] ?? 1));
+}
+
+export function rankedPower(h: Hero, power: number, id: string) {
+  const rank = skillRank(h, id);
+  return Math.max(0, Math.round(power * (1 + (rank - 1) * 0.15)));
+}
+
+export function raiseSkill(uid: string, id: string) {
+  const h = G.party.find((p) => p.uid === uid);
+  if (!h || !h.known.includes(id)) return;
+  const cur = skillRank(h, id);
+  if (cur >= 5 || h.skillPts < 1) {
+    log(cur >= 5 ? "Це вміння вже на п'ятому ранзі." : "Немає очок вмінь. Вони приходять з рівнем.");
+    bump();
+    return;
+  }
+  h.skillPts -= 1;
+  h.ranks[id] = cur + 1;
+  const sk = skillById(h, id);
+  log(`${h.name}: ${sk?.name ?? "вміння"} тепер ${cur + 1} рангу.`);
+  persist();
+  bump();
+}
+
 export function grantXp(h: Hero, n: number) {
   if (n <= 0 || h.level >= 85) return;
+  ensureGrowth(h);
   h.xp += n;
   let up = false;
   while (h.level < 85 && h.xp >= xpNeed(h.level)) {
     h.xp -= xpNeed(h.level);
     h.level += 1;
     h.unspent += 5;
+    h.skillPts += 1;
     up = true;
   }
   if (up) {
@@ -615,6 +654,7 @@ export function loadGame(hard: boolean) {
     G.sites = data.sites ?? {};
     G.siteKind = data.siteKind ?? {};
     G.party = data.party;
+    for (const h of G.party) ensureGrowth(h);
     G.log = data.log ?? [];
     G.units = [];
     G.epilogue = "";
@@ -1955,6 +1995,7 @@ function finishPull(fightId: string) {
     xp += m.xp;
     gold += m.gold;
   }
+  gold = Math.round(gold * 1.3);
   G.mobs = G.mobs.filter((m) => m.fight !== fightId);
   G.fightId = fightId;
   const boss = /boss/.test(fightId);
@@ -1968,9 +2009,14 @@ function finishPull(fightId: string) {
   if (L) {
     const bag = ["pot", "bread", "ton", "resin", "pot2"];
     const pick = bag[Math.min(bag.length - 1, Math.floor(Math.random() * (boss ? 5 : 3)))]!;
-    if (Math.random() < 0.6) {
+    if (Math.random() < 0.82) {
       addItem(L, pick, 1);
       lines.push(`${itemById(pick)?.name ?? "Річ"} — у сумці.`);
+      if (Math.random() < 0.28) {
+        const extra = Math.random() < 0.5 ? "bread" : "pot";
+        addItem(L, extra, 1);
+        lines.push(`${itemById(extra)?.name ?? "Дрібниця"} — ще одна.`);
+      }
     }
     if (boss) {
       const gear = G.fightId === "nave-boss" ? "t-nave-wax" : G.fightId === "fen-boss" ? "t-reed-knot" : G.fightId === "crypt-boss" ? "t-bell" : "t-salt";
@@ -1981,6 +2027,7 @@ function finishPull(fightId: string) {
     }
   }
   if (L && L.unspent > 0) lines.push(`Вільні очки рис: ${L.unspent}. Відкрий лист героя.`);
+  if (L && L.skillPts > 0) lines.push(`Очки вмінь: ${L.skillPts}.`);
   if (G.fightId === "tract-ambush") setQuest("q-road:2");
   if (G.fightId === "crypt-boss") {
     setQuest("q-bell:999");
@@ -2082,7 +2129,9 @@ export function fieldCast(id: string) {
     return;
   }
   const stat = L.stats[sk.stat];
-  const cd = Math.max(1.15, 2.1 + sk.focus * 0.4 - L.stats.dex * 0.02);
+  const rank = skillRank(L, id);
+  const pow = rankedPower(L, sk.power, id);
+  const cd = Math.max(0.95, (2.1 + sk.focus * 0.4 - L.stats.dex * 0.02) * (1 - (rank - 1) * 0.05));
   if (sk.target === "enemy") {
     const reach = Math.max(sk.range > 1 ? heroReach(L.hero) : 112, sk.range * 78);
     const { foe, missed } = aimedMob(reach);
@@ -2101,7 +2150,7 @@ export function fieldCast(id: string) {
     G.skillCd[id] = cd;
     faceToward(foe.x, foe.y);
     G.anim.hero = { kind: sk.kind === "dmg" ? "attack" : "cast", t: 0, dx: foe.x - G.x, dy: foe.y - G.y };
-    const dmg = sk.power ? blowDamage(sk.power, stat) : 0;
+    const dmg = pow ? blowDamage(pow, stat) : 0;
     if (dmg) hurtMob(foe, dmg);
     const fx = sk.status ? statusName(sk.status.id) : "";
     G.lastRoll = `${sk.name}: ${dmg ? `${dmg} шкоди. ` : ""}${fx}`.trim();
@@ -2111,8 +2160,8 @@ export function fieldCast(id: string) {
     G.swing = 0.14;
     G.skillCd[id] = cd;
     G.anim.hero = { kind: "cast", t: 0, dx: 0, dy: -1 };
-    if (sk.kind === "heal" || sk.power > 0 && sk.kind !== "debuff") {
-      const n = blowDamage(Math.max(1, sk.power), stat);
+    if (sk.kind === "heal" || (pow > 0 && sk.kind !== "debuff")) {
+      const n = blowDamage(Math.max(1, pow), stat);
       L.hp = Math.min(L.maxHp, L.hp + n);
       G.floats.push({ x: G.x, y: G.y - 30, text: `+${n}`, color: "#8dcf9a", t: 0 });
       G.lastRoll = `${sk.name}: +${n}.`;
@@ -2538,6 +2587,7 @@ function endCombat(victory: boolean) {
       xp += Math.round(base.xp * (1 + (tier - 1) * 0.25));
       gold += Math.round(base.gold * (1 + (tier - 1) * 0.2));
     }
+    gold = Math.round(gold * 1.3);
     if (!G.cleared.includes(G.fightId)) G.cleared.push(G.fightId);
     const L = leader();
     if (L) L.gold += gold;
@@ -2772,27 +2822,29 @@ function allyAct(id: string) {
   }
   u.focus -= sk.focus;
   const stat = u.stats[sk.stat];
+  const pow = rankedPower(h, sk.power, sk.id);
+  const pot = (sk.status?.pot ?? 0) + Math.floor((skillRank(h, sk.id) - 1) / 2);
   uAnim(u.uid, sk.kind === "dmg" ? "attack" : "cast", target ? target.x - u.x : 0, target ? target.y - u.y : -1);
   for (const v of victims) {
     if (sk.kind === "heal") {
-      healUnit(v, sk.power + Math.floor(stat / 3) + Math.round(pm.heal / 2), !!sk.revive);
-      if (sk.status) putStatus(v, sk.status.id, sk.status.turns, sk.status.pot, u.uid);
+      healUnit(v, pow + Math.floor(stat / 3) + Math.round(pm.heal / 2), !!sk.revive);
+      if (sk.status) putStatus(v, sk.status.id, sk.status.turns, pot, u.uid);
       if (sk.id === "he-clean") clearBad(v);
     } else if (sk.kind === "buff") {
-      if (sk.status) putStatus(v, sk.status.id, sk.status.turns, sk.status.pot, u.uid);
+      if (sk.status) putStatus(v, sk.status.id, sk.status.turns, pot, u.uid);
       G.lastRoll = `${u.name}: ${sk.name}. ${statusName(sk.status?.id)}${sk.status ? `, ${sk.status.turns} х.` : ""}`;
       floatAt(v, statusName(sk.status?.id) || sk.name, "#c6a15a");
     } else if (sk.kind === "debuff") {
-      if (sk.power) strike(u, v, sk.acc + pm.acc, stat, sk.power + Math.round(pm.dmg / 2), 0, sk.leech ?? 0);
-      if (sk.status) putStatus(v, sk.status.id, sk.status.turns, sk.status.pot, u.uid);
+      if (pow) strike(u, v, sk.acc + pm.acc, stat, pow + Math.round(pm.dmg / 2), 0, sk.leech ?? 0);
+      if (sk.status) putStatus(v, sk.status.id, sk.status.turns, pot, u.uid);
       G.lastRoll = `${u.name}: ${sk.name}. ${statusName(sk.status?.id)}${sk.status ? `, ${sk.status.turns} х.` : ""}`;
     } else {
       let bonus = 0;
       if (sk.id === "as-back" && (has(v, "mark") || has(v, "vuln"))) bonus += 6;
       if (sk.id === "va-feast" && has(v, "bleed")) bonus += 4;
-      strike(u, v, sk.acc + pm.acc, stat, sk.power + Math.round(pm.dmg / 2) + bonus, 0, sk.leech ?? u.leech);
+      strike(u, v, sk.acc + pm.acc, stat, pow + Math.round(pm.dmg / 2) + bonus, 0, sk.leech ?? u.leech);
       if (sk.status && v.hp > 0) {
-        putStatus(v, sk.status.id, sk.status.turns, sk.status.pot, u.uid);
+        putStatus(v, sk.status.id, sk.status.turns, pot, u.uid);
         G.lastRoll = `${G.lastRoll} ${statusName(sk.status.id)}, ${sk.status.turns} х.`;
       }
     }
