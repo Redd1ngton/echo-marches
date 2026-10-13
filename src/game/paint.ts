@@ -535,13 +535,14 @@ function draw(ctx: CanvasRenderingContext2D, viewW: number, viewH: number) {
 
   for (const s of G.shots) {
     const k = Math.min(1, s.t / s.dur);
+    const arrow = s.row === 0;
     for (let i = 3; i >= 1; i--) {
       const kk = Math.max(0, k - i * 0.05);
       const ghost = at(s.x + (s.tx - s.x) * kk, s.y + (s.ty - s.y) * kk);
       ctx.globalAlpha = 0.22;
       ctx.fillStyle = s.row === 2 ? "#e4c6ff" : s.row === 3 ? "#b6e38a" : "#f3ead6";
       ctx.beginPath();
-      ctx.ellipse(ghost.x, ghost.y, 8 - i, 3.2, 0, 0, Math.PI * 2);
+      ctx.ellipse(ghost.x, ghost.y, (arrow ? 3.4 : 8) - i * 0.5, arrow ? 1.1 : 3.2, 0, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.globalAlpha = 1;
@@ -1220,22 +1221,23 @@ function drawFlight(ctx: CanvasRenderingContext2D, x0: number, y0: number, x: nu
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(ang);
-  ctx.scale(2.35, 2.35);
+  const arrow = row === 0;
+  ctx.scale(arrow ? 1 : 2.35, arrow ? 1 : 2.35);
   if (row === 0) {
     ctx.strokeStyle = "#f3ead6";
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 1.15;
     ctx.beginPath();
-    ctx.moveTo(-18, 0);
-    ctx.lineTo(4, 0);
+    ctx.moveTo(-9, 0);
+    ctx.lineTo(2, 0);
     ctx.stroke();
     ctx.fillStyle = "#e7d3a4";
     ctx.beginPath();
-    ctx.moveTo(12, 0);
-    ctx.lineTo(2, -4);
-    ctx.lineTo(2, 4);
+    ctx.moveTo(6, 0);
+    ctx.lineTo(1.5, -1.7);
+    ctx.lineTo(1.5, 1.7);
     ctx.fill();
     ctx.fillStyle = "#8a6230";
-    ctx.fillRect(-18, -1.5, 5, 3);
+    ctx.fillRect(-9, -0.9, 2.4, 1.8);
   } else if (row === 2) {
     ctx.fillStyle = "rgba(150,70,190,0.35)";
     ctx.beginPath();
