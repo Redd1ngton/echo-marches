@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { HEROES, HERO_ORDER, REGIONS, RARITY_COLOR, STATS, STAT_LABEL, itemById, itemFacts, pathChoices, type HeroId, type Stat } from "@/game/content";
+import { HEROES, HERO_ORDER, PATHS, REGIONS, RARITY_COLOR, STATS, STAT_LABEL, itemById, itemFacts, pathChoices, type HeroId, type Stat } from "@/game/content";
 import { CHAPTERS, LORE, SETS, SIDE_QUESTS } from "@/game/saga";
 import {
   G,
@@ -953,7 +953,16 @@ function HeroSheet({ hero }: { hero: Hero }) {
           Рекомендовано ({hero.unspent})
         </button>
       )}
-      {pending && <p className="mt-2 text-sm text-brass">Відкрита професія на {pending}. Вона чекає в окремому вікні після бою.</p>}
+      {pending && (
+        <button className="mt-2 min-h-11 border border-brass px-3 text-sm text-brass" onClick={() => openPanel("path")}>
+          Обрати професію · поріг {pending}
+        </button>
+      )}
+      {hero.paths.length > 0 && (
+        <p className="mt-2 text-sm text-brass">
+          Стежка: {hero.paths.map((id) => PATHS.find((p) => p.id === id)?.name ?? id).join(" → ")}
+        </p>
+      )}
       <h3 className="mt-4 font-display text-xl">Панель умінь</h3>
       <p className="text-xs text-mist">Натисни вміння, щоб поставити його на дугу. Плюс піднімає ранг до 5: сильніше б'є і трохи швидше холоне. Очко вміння приходить з кожним рівнем.</p>
       <div className="mt-1 flex flex-col gap-1">
@@ -1058,6 +1067,19 @@ function HeroSheet({ hero }: { hero: Hero }) {
   );
 }
 
+function pathLine(p: { dmg: number; heal: number; crit: number; acc: number; armor: number; leech: number; aoe: number; power: number }) {
+  const bits: string[] = [];
+  if (p.power) bits.push(`сила +${p.power}`);
+  if (p.dmg) bits.push(`шкода +${p.dmg}`);
+  if (p.heal) bits.push(`лікування +${p.heal}`);
+  if (p.acc) bits.push(`влучення +${p.acc}`);
+  if (p.crit) bits.push(`крит +${p.crit}`);
+  if (p.armor) bits.push(`броня +${p.armor}`);
+  if (p.aoe) bits.push("б'є по площі");
+  if (p.leech) bits.push(`витягування +${p.leech}`);
+  return bits.join(" · ");
+}
+
 function PathPicker() {
   const h = G.party.find((p) => nextGate(p));
   if (!h) return null;
@@ -1068,11 +1090,12 @@ function PathPicker() {
   return (
     <div>
       <p className="text-sm">
-        {h.name}, рівень {at}. Обери одну стежку. Фінал на 85 займе слот уміння.
+        {h.name}, рівень {h.level}. Поріг професії {at}. Обери одну стежку. Фінал на 85 займе слот уміння.
       </p>
       {opts.map((p) => (
         <button key={p.id} className="mt-2 block min-h-11 w-full border border-brass px-3 text-left" onClick={() => pickPath(p.id)}>
           <span className="font-display text-xl">{p.name}</span>
+          <span className="block text-xs text-brass">{pathLine(p)}</span>
           <span className="block text-xs text-mist">{p.text}</span>
         </button>
       ))}

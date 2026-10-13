@@ -479,6 +479,7 @@ export function grantXp(h: Hero, n: number) {
     h.hp = h.maxHp;
     h.focus = h.maxFocus;
     log(`${h.name} досягає ${h.level} рівня.`);
+    offerPath();
   }
 }
 
@@ -488,6 +489,12 @@ export function nextGate(h: Hero): 20 | 40 | 60 | 85 | null {
     if (h.level >= at && !h.paths.some((id) => PATHS.find((p) => p.id === id && p.at === at))) return at;
   }
   return null;
+}
+
+function offerPath() {
+  if (G.epilogue || G.mode === "title" || G.mode === "combat" || G.mode === "talk" || G.mode === "path") return;
+  if (!G.party.some((p) => nextGate(p))) return;
+  G.mode = "path";
 }
 
 export function gateParent(h: Hero, at: 20 | 40 | 60 | 85) {
@@ -671,6 +678,7 @@ export function loadGame(hard: boolean) {
     }
     G.grace = 0.7;
     G.mode = "explore";
+    offerPath();
     spawnFolk();
     spawnPacks();
     bump();
@@ -1261,9 +1269,9 @@ export function travelStory(regionId: string) {
 
 export function closePanel() {
   if (G.mode === "title" || G.mode === "combat") return;
-  if (G.mode === "epilogue") return;
-  const pending = G.party.find((p) => nextGate(p));
-  G.mode = pending && G.mode === "path" ? "path" : "explore";
+  if (G.mode === "epilogue" || G.mode === "path") return;
+  const pending = G.party.some((p) => nextGate(p));
+  G.mode = pending ? "path" : "explore";
   if (G.mode !== "path") G.aim = null;
   persist();
   bump();

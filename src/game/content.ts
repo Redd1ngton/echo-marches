@@ -768,9 +768,13 @@ for (const hero of Object.keys(HEROES) as HeroId[]) {
     { id: `${b}-vein`, hero, parent: b, at: 40, name: "Жила", text: "Критичні частіші.", dmg: 4, heal: 0, crit: 2, acc: 1, armor: 0, leech: 0, aoe: 0, power: 3 },
     { id: `${b}-ash`, hero, parent: b, at: 40, name: "Попіл", text: "Удар тримається.", dmg: 6, heal: 0, crit: 0, acc: 1, armor: 0, leech: 0, aoe: 0, power: 3 },
     { id: `${hero}-oath`, hero, parent: `${a}-wide`, at: 60, name: "Клятва кола", text: "Сила й площа.", dmg: 6, heal: 2, crit: 0, acc: 0, armor: 0, leech: 0, aoe: 1, power: 4 },
+    { id: `${hero}-wall`, hero, parent: `${a}-guard`, at: 60, name: "Стіна", text: "Броня тримає коло.", dmg: 3, heal: 2, crit: 0, acc: 0, armor: 2, leech: 0, aoe: 0, power: 4 },
     { id: `${hero}-needle`, hero, parent: `${b}-vein`, at: 60, name: "Голка", text: "Одна ціль.", dmg: 8, heal: 0, crit: 1, acc: 2, armor: 0, leech: 0, aoe: 0, power: 4 },
+    { id: `${hero}-ember`, hero, parent: `${b}-ash`, at: 60, name: "Жар", text: "Удар не гасне.", dmg: 8, heal: 0, crit: 0, acc: 1, armor: 0, leech: 0, aoe: 0, power: 5 },
     { id: `${hero}-seal`, hero, parent: `${hero}-oath`, at: 85, name: "Печатка кола", text: "Останнє широке слово.", dmg: 8, heal: 4, crit: 0, acc: 0, armor: 1, leech: 0, aoe: 1, power: 6 },
+    { id: `${hero}-bastion`, hero, parent: `${hero}-wall`, at: 85, name: "Печатка стіни", text: "Останній обід.", dmg: 4, heal: 4, crit: 0, acc: 0, armor: 2, leech: 0, aoe: 1, power: 6 },
     { id: `${hero}-last`, hero, parent: `${hero}-needle`, at: 85, name: "Печатка вістря", text: "Останній точний удар.", dmg: 10, heal: 0, crit: 2, acc: 2, armor: 0, leech: 0, aoe: 0, power: 6 },
+    { id: `${hero}-cinder`, hero, parent: `${hero}-ember`, at: 85, name: "Печатка жару", text: "Останній важкий удар.", dmg: 12, heal: 0, crit: 0, acc: 1, armor: 0, leech: 0, aoe: 0, power: 7 },
   );
 }
 
