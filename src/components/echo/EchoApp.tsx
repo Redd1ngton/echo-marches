@@ -7,6 +7,7 @@ import {
   aimSkill,
   allReady,
   alloc,
+  attackDelay,
   allocRec,
   allies,
   beginGame,
@@ -736,9 +737,9 @@ function FieldBar() {
   if (!L) return null;
   const skills = [0, 1, 2, 3].map((i) => skillById(L, L.loadout[i] ?? ""));
   const picked = G.mobs.find((m) => m.uid === G.target && m.hp > 0);
-  const angles = [12, 48, 84, 120];
-  const radius = 168;
-  const size = 76;
+  const angles = [8, 34, 60, 86];
+  const radius = 176;
+  const size = 70;
   return (
     <>
       {picked && (
@@ -895,7 +896,7 @@ function HeroSheet({ hero }: { hero: Hero }) {
   return (
     <div>
       <p className="text-sm text-mist">
-        Рівень {hero.level} · досвід {hero.xp}/{xpNeed(hero.level)} · монети {hero.gold}
+        Рівень {hero.level} · досвід {hero.xp}/{xpNeed(hero.level)} · монети {hero.gold} · удар {attackDelay(hero).toFixed(2)} с
         {hero.merc ? " · найманець" : ""}
       </p>
       <p className="mt-1 text-xs text-mist">

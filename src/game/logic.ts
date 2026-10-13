@@ -1961,6 +1961,35 @@ export function mobUnder(wx: number, wy: number) {
   return G.mobs.some((m) => m.hp > 0 && onBody(m.x, m.y, wx, wy));
 }
 
+function ownsGear(h: Hero, id: string) {
+  return h.weapon === id || h.armor === id || h.trinket === id || h.bag.some((b) => b.id === id);
+}
+
+function rollGear(h: Hero, level: number, boss: boolean) {
+  if (Math.random() > (boss ? 0.7 : 0.2)) return "";
+  const band = boss ? level + 3 : level;
+  const pool = ITEMS.filter((it) => {
+    if (it.slot === "consumable") return false;
+    if (it.heroes && !it.heroes.includes(h.hero)) return false;
+    const power = it.power ?? 0;
+    const armor = it.armorN ?? 0;
+    if (band < 5 && (power >= 5 || armor >= 3 || it.price === 0)) return false;
+    if (band < 8 && (power >= 6 || armor >= 4)) return false;
+    if (!boss && it.price === 0 && band < 10) return false;
+    return !ownsGear(h, it.id);
+  });
+  if (!pool.length) return "";
+  const weight = (price: number) => (price === 0 ? 1 : price < 40 ? 6 : 3);
+  let total = 0;
+  for (const it of pool) total += weight(it.price);
+  let roll = Math.random() * total;
+  for (const it of pool) {
+    roll -= weight(it.price);
+    if (roll <= 0) return it.id;
+  }
+  return pool[0]!.id;
+}
+
 function faceToward(x: number, y: number) {
   const dx = x - G.x;
   const dy = y - G.y;
@@ -1968,8 +1997,11 @@ function faceToward(x: number, y: number) {
   else G.facing = dy > 0 ? 0 : 3;
 }
 
-function attackDelay(h: Hero) {
-  return Math.max(0.32, 0.7 - h.stats.dex * 0.014 - h.level * 0.003);
+export function attackDelay(h: Hero) {
+  const dex = gearMods(h).stats.dex;
+  const aspd = dex + Math.floor(h.level / 2);
+  const delay = 1.2 * (100 / (100 + aspd * 1.7));
+  return Math.max(0.36, Math.min(1.25, delay));
 }
 
 export function setAtkHold(on: boolean) {
@@ -2006,6 +2038,14 @@ function slain(m: Mob) {
     const pick = bag[Math.floor(Math.random() * bag.length)]!;
     addItem(L, pick, 1);
     G.floats.push({ x: m.x, y: m.y - 82, text: itemById(pick)?.name ?? "Річ", color: "#d7c4a2", t: 0 });
+  }
+  if (L) {
+    const gear = rollGear(L, m.level, m.role === "boss");
+    if (gear) {
+      addItem(L, gear, 1);
+      G.floats.push({ x: m.x, y: m.y - 100, text: itemById(gear)?.name ?? "Спорядження", color: "#e7d3a4", t: 0 });
+      log(`${itemById(gear)?.name ?? "Спорядження"} — у сумці.`);
+    }
   }
   const left = G.mobs.some((o) => o.fight === fightId && o.hp > 0);
   if (!left) finishPull(fightId, true);
@@ -2166,7 +2206,9 @@ export function fieldCast(id: string) {
   const stat = L.stats[sk.stat];
   const rank = skillRank(L, id);
   const pow = rankedPower(L, sk.power, id);
-  const cd = Math.max(0.95, (2.1 + sk.focus * 0.4 - L.stats.dex * 0.02) * (1 - (rank - 1) * 0.05));
+  const dex = gearMods(L).stats.dex;
+  const haste = 100 / (100 + dex * 1.35 + (rank - 1) * 8);
+  const cd = Math.max(0.45, (1.6 + sk.focus * 0.55) * haste);
   if (sk.target === "enemy") {
     const reach = Math.max(sk.range > 1 ? heroReach(L.hero) : 112, sk.range * 78);
     const { foe, missed } = aimedMob(reach);
