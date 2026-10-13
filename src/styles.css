@@ -1,0 +1,72 @@
+@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Manrope:wght@400;500;600;700&display=swap");
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #07080c;
+  --color-panel: #12151c;
+  --color-panel-2: #1a1e27;
+  --color-line: #3a3428;
+  --color-brass: #c6a15a;
+  --color-brass-dim: #8c6e38;
+  --color-parchment: #e6dcc8;
+  --color-mist: #8aa0ab;
+  --color-blood: #8f3d3a;
+  --color-moss: #7d9a6a;
+  --color-deep: #0c1218;
+  --font-display: "Cormorant Garamond", Palatino, Georgia, serif;
+  --font-sans: Manrope, "Segoe UI", sans-serif;
+  --radius-sm: 0.25rem;
+}
+
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  html,
+  body {
+    height: 100%;
+    background: var(--color-ink);
+    color: var(--color-parchment);
+    font-family: var(--font-sans);
+  }
+  body {
+    margin: 0;
+    overflow: hidden;
+  }
+  #root {
+    height: 100%;
+  }
+}
+
+.safe-b {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+.safe-t {
+  padding-top: max(0.5rem, env(safe-area-inset-top));
+}
+
+.panel {
+  background: color-mix(in oklab, var(--color-panel) 94%, black);
+  border: 1px solid var(--color-line);
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--color-brass) 35%, transparent),
+    0 16px 40px rgba(0, 0, 0, 0.45);
+}
+
+.meter {
+  height: 0.4rem;
+  background: #1b211c;
+  border: 1px solid var(--color-line);
+}
+.meter > span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-brass-dim), var(--color-brass));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    scroll-behavior: auto !important;
+  }
+}
