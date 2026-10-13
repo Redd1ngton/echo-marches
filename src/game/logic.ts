@@ -1807,11 +1807,11 @@ function refreshIntents() {
 
 function tryFight() {
   if (G.grace > 0 || G.mode !== "explore") return;
-  for (const f of G.map.fights) {
-    if (G.cleared.includes(f.id) || f.calm) continue;
-    const pack = G.mobs.filter((m) => m.fight === f.id && m.hp > 0 && m.hold);
-    if (!pack.length) continue;
-    if (pack.some((m) => Math.hypot(m.x - G.x, m.y - G.y) < 100)) wakeFight(f.id);
+  for (const m of G.mobs) {
+    if (m.hp <= 0 || !m.hold) continue;
+    const spot = G.map.fights.find((f) => f.id === m.fight);
+    if (!spot || spot.calm || G.cleared.includes(spot.id)) continue;
+    if (Math.hypot(m.x - G.x, m.y - G.y) < 38) m.hold = false;
   }
 }
 
@@ -1820,8 +1820,12 @@ function pushPack(f: Fight, hold: boolean) {
   for (const foe of f.foes) {
     const base = ENEMIES[foe.id] ?? ENEMIES.drowned!;
     for (let i = 0; i < foe.n; i++) {
-      const x = (f.x + 1 + (n % 4) * 2 + 0.5) * TILE;
-      const y = (f.y + 1 + Math.floor(n / 4) + 0.92) * TILE;
+      const cx = f.x + Math.max(1, f.w * 0.5);
+      const cy = f.y + Math.max(1, f.h * 0.5);
+      const ang = n * 2.399;
+      const rad = 0.55 + (n % 3) * 0.28;
+      const x = (cx + Math.cos(ang) * rad) * TILE;
+      const y = (cy + Math.sin(ang) * rad * 0.7) * TILE;
       n += 1;
       const role = base.role;
       const pit = /^pit-(\d+)$/.exec(G.map.id);
@@ -1886,15 +1890,15 @@ function ensurePacks() {
   }
 }
 
-function wakeFight(id: string) {
-  for (const m of G.mobs) if (m.fight === id) m.hold = false;
+function wakeOne(m: Mob) {
+  m.hold = false;
 }
 
 function engage(f: Fight, hold = false) {
   G.fightId = f.id;
   G.lastRoll = hold ? "Ціль вибрана. Вони ще не йдуть." : "Вони попереду. Бий і відходь, поки вміння холодне.";
   if (G.mobs.some((m) => m.fight === f.id && m.hp > 0)) {
-    if (!hold) wakeFight(f.id);
+    if (!hold) wakeOne(G.mobs.find((m) => m.fight === f.id && m.hp > 0)!);
     bump();
     return;
   }
@@ -1982,31 +1986,64 @@ function hurtMob(m: Mob, dmg: number) {
       G.lockTarget = false;
       G.target = "";
     }
-    finishPull(m.fight);
+    slain(m);
   }
 }
 
-function finishPull(fightId: string) {
-  const pack = G.mobs.filter((m) => m.fight === fightId);
-  if (!pack.length || pack.some((m) => m.hp > 0)) return;
+function slain(m: Mob) {
+  const fightId = m.fight;
+  const xp = m.xp;
+  const gold = Math.round(m.gold * 1.3);
+  G.mobs = G.mobs.filter((o) => o.uid !== m.uid);
+  const L = leader();
+  if (L) L.gold += gold;
+  const share = Math.max(1, Math.round(xp / Math.max(1, G.party.length)));
+  for (const h of G.party) grantXp(h, share);
+  G.floats.push({ x: m.x, y: m.y - 46, text: `+${share}`, color: "#f2d48a", t: 0 });
+  G.floats.push({ x: m.x, y: m.y - 64, text: `+${gold}`, color: "#e7d7a1", t: 0 });
+  if (L && Math.random() < 0.42) {
+    const bag = ["pot", "bread", "ton"];
+    const pick = bag[Math.floor(Math.random() * bag.length)]!;
+    addItem(L, pick, 1);
+    G.floats.push({ x: m.x, y: m.y - 82, text: itemById(pick)?.name ?? "Річ", color: "#d7c4a2", t: 0 });
+  }
+  const left = G.mobs.some((o) => o.fight === fightId && o.hp > 0);
+  if (!left) finishPull(fightId, true);
+  else {
+    log(`${m.name} падає. Сусід ще стоїть.`);
+    persist();
+    bump();
+  }
+}
+
+function finishPull(fightId: string, alreadyPaid = false) {
+  const pack = G.mobs.filter((m) => m.fight === fightId && m.hp > 0);
+  if (pack.length) return;
   let xp = 0;
   let gold = 0;
-  for (const m of pack) {
-    xp += m.xp;
-    gold += m.gold;
+  if (!alreadyPaid) {
+    for (const m of G.mobs.filter((o) => o.fight === fightId)) {
+      xp += m.xp;
+      gold += m.gold;
+    }
+    gold = Math.round(gold * 1.3);
   }
-  gold = Math.round(gold * 1.3);
   G.mobs = G.mobs.filter((m) => m.fight !== fightId);
   G.fightId = fightId;
   const boss = /boss/.test(fightId);
   if (G.fightId && !G.cleared.includes(G.fightId)) G.cleared.push(G.fightId);
   if (G.fightId && !boss && !G.fightId.startsWith("pit-")) G.back[G.fightId] = G.time + 18;
   const L = leader();
-  if (L) L.gold += gold;
-  const share = Math.max(1, Math.round(xp / Math.max(1, G.party.length)));
-  for (const h of G.party) grantXp(h, share);
-  const lines = [`Досвід кожному: ${share}.`, `Монети: ${gold}.`];
-  if (L) {
+  const lines: string[] = [];
+  if (!alreadyPaid) {
+    if (L) L.gold += gold;
+    const share = Math.max(1, Math.round(xp / Math.max(1, G.party.length)));
+    for (const h of G.party) grantXp(h, share);
+    lines.push(`Досвід кожному: ${share}.`, `Монети: ${gold}.`);
+    G.floats.push({ x: G.x, y: G.y - 46, text: `+${share} досвіду`, color: "#f2d48a", t: 0 });
+    G.floats.push({ x: G.x, y: G.y - 64, text: `+${gold} монет`, color: "#e7d7a1", t: 0 });
+  } else lines.push("Купка затихла.");
+  if (L && !alreadyPaid) {
     const bag = ["pot", "bread", "ton", "resin", "pot2"];
     const pick = bag[Math.min(bag.length - 1, Math.floor(Math.random() * (boss ? 5 : 3)))]!;
     if (Math.random() < 0.82) {
@@ -2018,12 +2055,12 @@ function finishPull(fightId: string) {
         lines.push(`${itemById(extra)?.name ?? "Дрібниця"} — ще одна.`);
       }
     }
-    if (boss) {
-      const gear = G.fightId === "nave-boss" ? "t-nave-wax" : G.fightId === "fen-boss" ? "t-reed-knot" : G.fightId === "crypt-boss" ? "t-bell" : "t-salt";
-      if (!L.bag.some((b) => b.id === gear) && L.trinket !== gear && L.weapon !== gear && L.armor !== gear) {
-        addItem(L, gear, 1);
-        lines.push(`${itemById(gear)?.name ?? "Річ"} — у сумці.`);
-      }
+  }
+  if (L && boss) {
+    const gear = G.fightId === "nave-boss" ? "t-nave-wax" : G.fightId === "fen-boss" ? "t-reed-knot" : G.fightId === "crypt-boss" ? "t-bell" : "t-salt";
+    if (!L.bag.some((b) => b.id === gear) && L.trinket !== gear && L.weapon !== gear && L.armor !== gear) {
+      addItem(L, gear, 1);
+      lines.push(`${itemById(gear)?.name ?? "Річ"} — у сумці.`);
     }
   }
   if (L && L.unspent > 0) lines.push(`Вільні очки рис: ${L.unspent}. Відкрий лист героя.`);
@@ -2055,8 +2092,6 @@ function finishPull(fightId: string) {
   G.swing = 0;
   G.reward = null;
   G.mode = "explore";
-  G.floats.push({ x: G.x, y: G.y - 46, text: `+${share} досвіду`, color: "#f2d48a", t: 0 });
-  G.floats.push({ x: G.x, y: G.y - 64, text: `+${gold} монет`, color: "#e7d7a1", t: 0 });
   if (drop) G.floats.push({ x: G.x, y: G.y - 82, text: itemById(drop[1])?.name ?? "Річ", color: "#d7c4a2", t: 0 });
   log(lines.join(" "));
   persist();
@@ -2101,7 +2136,7 @@ export function fieldStrike(quiet = false, auto = false) {
     }
     return;
   }
-  if (foe.hold) wakeFight(foe.fight);
+  if (foe.hold) wakeOne(foe);
   faceToward(foe.x, foe.y);
   G.hunt = true;
   G.path = [];
@@ -2144,7 +2179,7 @@ export function fieldCast(id: string) {
       bump();
       return;
     }
-    if (foe.hold) wakeFight(foe.fight);
+    if (foe.hold) wakeOne(foe);
     L.focus -= sk.focus;
     G.swing = 0.16;
     G.skillCd[id] = cd;
@@ -2225,10 +2260,13 @@ function tickMobs(dt: number) {
     const ux = dx / dist;
     const uy = dy / dist;
     if (m.hold) {
-      if (dist < 70) wakeFight(m.fight);
-      const ang = G.time * 0.55 + m.hx * 0.02;
-      stepMob(m, Math.cos(ang), Math.sin(ang * 0.8), dt, 26);
-      continue;
+      const spot = G.map.fights.find((f) => f.id === m.fight);
+      if (spot && !spot.calm && dist < 38) m.hold = false;
+      else {
+        const ang = G.time * 0.55 + m.hx * 0.02;
+        stepMob(m, Math.cos(ang), Math.sin(ang * 0.8), dt, 18);
+        continue;
+      }
     }
     m.cd = Math.max(0, m.cd - dt);
     if (dist > 520) {
