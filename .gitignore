@@ -1,13 +1,4 @@
-node_modules
-dist
-.output
-.vinxi
-.wrangler
-.env
-.env.*
-screenshots
-artifacts
-attachments
-versions
-*.log
-.DS_Store
+.vercel
+.grok
+.project_id
+.node_modules.lock
