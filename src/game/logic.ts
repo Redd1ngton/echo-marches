@@ -2220,7 +2220,8 @@ export function fieldStrike(quiet = false, auto = false) {
   G.swing = 0;
   G.atkCd = attackDelay(L);
   G.anim.hero = { kind: "attack", t: 0, dx: foe.x - G.x, dy: foe.y - G.y };
-  const dmg = blowDamage(HEROES[L.hero].power, L.stats[HEROES[L.hero].primary]);
+  const g = gearMods(L);
+  const dmg = blowDamage(HEROES[L.hero].power + g.power, g.stats[HEROES[L.hero].primary]);
   G.lastRoll = `${L.name}: ${dmg} шкоди.`;
   if (HEROES[L.hero].range > 1) {
     G.shots.push({ x: G.x, y: G.y - 30, tx: foe.x, ty: foe.y - 34, row: flightRow(L.hero), t: 0, dur: 0.55 });
@@ -2240,9 +2241,10 @@ export function fieldCast(id: string) {
     bump();
     return;
   }
-  const stat = L.stats[sk.stat];
   const rank = skillRank(L, id);
   const pow = rankedPower(L, sk.power, id);
+  const gear = gearMods(L);
+  const stat = gear.stats[sk.stat];
   const dex = gearMods(L).stats.dex;
   const haste = 100 / (100 + dex * 1.35 + (rank - 1) * 8);
   const cd = Math.max(0.45, (1.6 + sk.focus * 0.55) * haste);
@@ -2375,7 +2377,8 @@ function tickMobs(dt: number) {
       m.wind -= dt;
       if (prev > 0 && m.wind <= 0 && dist < m.range + 36) {
         m.cd = role === "caster" ? 1.7 : role === "archer" ? 1.25 : role === "boss" ? 1.05 : 0.85;
-        const cut = Math.max(1, m.dmg - Math.floor(L.stats.end / 5));
+        const gear = gearMods(L);
+        const cut = Math.max(1, m.dmg - Math.floor(gear.stats.end / 5) - gear.armor);
         L.hp -= cut;
         G.floats.push({ x: G.x, y: G.y - 34, text: `-${cut}`, color: "#e07070", t: 0 });
         G.anim.hero = { kind: "hurt", t: 0, dx: m.x - G.x, dy: m.y - G.y };

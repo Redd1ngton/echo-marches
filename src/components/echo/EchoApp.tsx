@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { HEROES, HERO_ORDER, REGIONS, STATS, STAT_LABEL, itemById, pathChoices, type HeroId, type Stat } from "@/game/content";
+import { HEROES, HERO_ORDER, REGIONS, RARITY_COLOR, STATS, STAT_LABEL, itemById, itemFacts, pathChoices, type HeroId, type Stat } from "@/game/content";
 import { CHAPTERS, LORE, SETS, SIDE_QUESTS } from "@/game/saga";
 import {
   G,
@@ -445,8 +445,8 @@ export function EchoApp() {
             {shopItems().map((it) => (
               <div key={it.id} className="mt-2 flex items-center justify-between gap-2 border border-line p-2">
                 <div>
-                  <div className="text-sm">{it.name}</div>
-                  <div className="text-xs text-mist">{it.blurb}</div>
+                  <GearLine id={it.id} />
+                  <div className="text-xs text-parchment/70">{it.blurb}</div>
                 </div>
                 <button className="min-h-11 shrink-0 border border-brass px-2 text-sm" onClick={() => buy(it.id)}>
                   {it.price}
@@ -457,7 +457,8 @@ export function EchoApp() {
             {L.bag.filter((b) => (itemById(b.id)?.price ?? 0) > 0).map((b) => (
               <div key={b.id} className="mt-2 flex items-center justify-between gap-2 border border-line p-2">
                 <span className="text-sm">
-                  {itemById(b.id)?.name} ×{b.n}
+                  <GearLine id={b.id} />
+                  <span className="text-mist"> ×{b.n}</span>
                 </span>
                 <button className="min-h-11 border border-brass px-2 text-sm" onClick={() => sell(b.id)}>
                   {Math.max(1, Math.floor((itemById(b.id)?.price ?? 0) / 2))}
@@ -732,6 +733,18 @@ const SKILL_ICON: Record<string, number> = {
   "pa-light": 14,
 };
 
+function GearLine({ id }: { id: string }) {
+  const it = itemById(id);
+  if (!it) return null;
+  const color = it.rarity ? RARITY_COLOR[it.rarity] : undefined;
+  return (
+    <span>
+      <span style={color ? { color } : undefined}>{it.name}</span>
+      <span className="block text-xs text-mist">{itemFacts(it)}</span>
+    </span>
+  );
+}
+
 function FieldBar() {
   const L = G.party[0];
   if (!L) return null;
@@ -914,9 +927,9 @@ function HeroSheet({ hero }: { hero: Hero }) {
           ).map(([slot, label]) => {
             const it = itemById(hero[slot]);
             return (
-              <div key={slot} className="border border-brass/40 px-2 py-1">
+              <div key={slot} className="border px-2 py-1" style={{ borderColor: it?.rarity ? RARITY_COLOR[it.rarity] : "rgba(198,161,90,0.4)" }}>
                 <div className="text-[10px] uppercase tracking-wide text-mist">{label}</div>
-                <div className="text-sm">{it?.name ?? "порожньо"}</div>
+                {it ? <GearLine id={it.id} /> : <div className="text-sm">порожньо</div>}
                 {it?.set && <div className="text-[10px] text-brass">комплект {it.set}</div>}
               </div>
             );
@@ -983,7 +996,7 @@ function HeroSheet({ hero }: { hero: Hero }) {
       {hero.bag.map((b) => (
         <div key={b.id} className="mt-1 flex flex-wrap items-center gap-2 text-sm">
           <span>
-            {itemById(b.id)?.name} ×{b.n}
+            {itemById(b.id) ? <GearLine id={b.id} /> : b.id} ×{b.n}
           </span>
           <button className="min-h-11 border border-line px-2" onClick={() => equip(hero.uid, b.id)}>
             Вдягнути

@@ -122,6 +122,22 @@ export function skillsFor(hero: HeroId) {
   return SKILLS.filter((s) => s.hero === hero);
 }
 
+export type Rarity = "common" | "rare" | "mythic" | "legendary";
+
+export const RARITY_LABEL: Record<Rarity, string> = {
+  common: "Звичайне",
+  rare: "Рідкісне",
+  mythic: "Міфічне",
+  legendary: "Легендарне",
+};
+
+export const RARITY_COLOR: Record<Rarity, string> = {
+  common: "#9a9a9a",
+  rare: "#5aa7ff",
+  mythic: "#c084fc",
+  legendary: "#e23b3b",
+};
+
 export type Item = {
   id: string;
   name: string;
@@ -136,6 +152,7 @@ export type Item = {
   heroes?: HeroId[];
   armor?: ArmorKind;
   stat?: Partial<Record<Stat, number>>;
+  rarity?: Rarity;
   blurb: string;
 };
 
@@ -149,54 +166,71 @@ export const ITEMS: Item[] = [
   it({ id: "bread", name: "Солений хліб", slot: "consumable", price: 6, heal: 10, blurb: "Марта солить його проти хору." }),
   it({ id: "ton", name: "Настоянка волі", slot: "consumable", price: 14, focus: 6, blurb: "Повертає зосередження." }),
   it({ id: "resin", name: "Гірка смола", slot: "consumable", price: 22, focus: 12, blurb: "Тримає руку рівно на два заклинання." }),
-  it({ id: "a-coat", name: "Плащ дощу", slot: "armor", price: 36, armorN: 2, armor: "light", blurb: "Не гріє. Не дає воді назвати тебе." }),
-  it({ id: "a-vest", name: "Жилет варти", slot: "armor", price: 48, armorN: 3, armor: "medium", blurb: "Середня вага, поки немає панцира." }),
-  it({ id: "t-salt", name: "Мішечок солі", slot: "trinket", price: 30, acc: 1, blurb: "Сіль на порозі. Трохи точніші руки." }),
-  it({ id: "t-rain", name: "Скляна крапля", slot: "trinket", price: 42, power: 1, stat: { wil: 1 }, blurb: "Пам’ять шлюзу. Воля трохи твердіша." }),
-  it({ id: "w-bow3", name: "Лук тракту", slot: "weapon", price: 70, power: 5, acc: 1, heroes: ["archer"], blurb: "Тятива не розмокає." }),
-  it({ id: "w-sword2", name: "Меч брами", slot: "weapon", price: 68, power: 5, heroes: ["paladin"], blurb: "Брен такий не носить. Каже, що важкий." }),
-  it({ id: "w-axe2", name: "Сокира мулу", slot: "weapon", price: 72, power: 6, heroes: ["barbarian"], blurb: "Рубає те, що вже не людина." }),
-  it({ id: "w-dagger2", name: "Ніж паламаря", slot: "weapon", price: 66, power: 5, acc: 1, heroes: ["assassin", "vampire"], blurb: "Для воску і для спини." }),
-  it({ id: "w-staff2", name: "Посох краплі", slot: "weapon", price: 74, power: 5, heroes: ["sorceress", "herbalist"], blurb: "Перший дзвін, складений у дерево." }),
-  it({ id: "w-orb2", name: "Око шлюзу", slot: "weapon", price: 74, power: 5, heroes: ["witch"], blurb: "Дивиться туди, куди середній шлюз спить." }),
-  it({ id: "w-staff", name: "Посох іскри", slot: "weapon", price: 20, power: 3, heroes: ["sorceress"], blurb: "Стартовий посох." }),
-  it({ id: "w-sickle", name: "Серп трави", slot: "weapon", price: 18, power: 2, heroes: ["herbalist"], blurb: "Стартовий серп." }),
-  it({ id: "w-bow", name: "Мисливський лук", slot: "weapon", price: 22, power: 3, acc: 1, heroes: ["archer"], blurb: "Стартовий лук." }),
-  it({ id: "w-fang", name: "Ікло", slot: "weapon", price: 20, power: 3, heroes: ["vampire"], blurb: "Стартове ікло." }),
-  it({ id: "w-axe", name: "Сокира варти", slot: "weapon", price: 22, power: 4, heroes: ["barbarian"], blurb: "Стартова сокира." }),
-  it({ id: "w-dagger", name: "Ніж тіні", slot: "weapon", price: 20, power: 3, acc: 1, heroes: ["assassin"], blurb: "Стартовий ніж." }),
-  it({ id: "w-orb", name: "Око жаби", slot: "weapon", price: 20, power: 3, heroes: ["witch"], blurb: "Стартове око." }),
-  it({ id: "w-sword", name: "Меч варти", slot: "weapon", price: 22, power: 3, heroes: ["paladin"], blurb: "Стартовий меч." }),
-  it({ id: "w-bow2", name: "Лук сови", slot: "weapon", price: 80, power: 5, acc: 1, heroes: ["archer"], blurb: "Вербовий лук." }),
-  it({ id: "w-bow-night", name: "Нічний лук", slot: "weapon", price: 0, power: 6, acc: 1, heroes: ["archer"], blurb: "Здобич бурштину." }),
-  it({ id: "w-myth", name: "Струна відлуння", slot: "weapon", price: 0, power: 7, heroes: ["sorceress", "witch"], blurb: "З межі." }),
-  it({ id: "w-staff-reed", name: "Посох очерету", slot: "weapon", price: 0, power: 5, heroes: ["sorceress", "herbalist"], blurb: "Низини." }),
-  it({ id: "w-sickle-reed", name: "Серп низин", slot: "weapon", price: 0, power: 4, heroes: ["herbalist"], blurb: "Очерет." }),
-  it({ id: "w-orb-reed", name: "Око низин", slot: "weapon", price: 0, power: 5, heroes: ["witch"], blurb: "Туман." }),
-  it({ id: "w-dagger-sluice", name: "Ніж мулу", slot: "weapon", price: 0, power: 5, acc: 1, heroes: ["assassin", "vampire"], blurb: "Шлюз." }),
-  it({ id: "w-rapier-sluice", name: "Шпага броду", slot: "weapon", price: 0, power: 5, heroes: ["vampire"], blurb: "Брід." }),
-  it({ id: "w-axe-nave", name: "Сокира нави", slot: "weapon", price: 0, power: 6, heroes: ["barbarian"], blurb: "Нава." }),
-  it({ id: "w-sword-nave", name: "Меч світанку", slot: "weapon", price: 0, power: 6, heroes: ["paladin"], blurb: "Нава." }),
-  it({ id: "w-bow-nave", name: "Лук хору", slot: "weapon", price: 0, power: 6, heroes: ["archer"], blurb: "Хор." }),
-  it({ id: "a-cloth", name: "Ряса варти", slot: "armor", price: 24, armorN: 1, armor: "light", blurb: "Тонка тканина." }),
-  it({ id: "a-leather", name: "Шкіра варти", slot: "armor", price: 28, armorN: 2, armor: "light", blurb: "М'яка шкіра." }),
-  it({ id: "a-mail", name: "Кільця варти", slot: "armor", price: 36, armorN: 3, armor: "medium", blurb: "Важка кольчуга." }),
-  it({ id: "a-plate", name: "Панцир варти", slot: "armor", price: 44, armorN: 4, armor: "heavy", blurb: "Плита." }),
-  it({ id: "a-willow-hide", name: "Вербова шкіра", slot: "armor", price: 0, armorN: 2, armor: "light", set: "willow", blurb: "Комплект верби." }),
-  it({ id: "a-echo-veil", name: "Вуаль другого слуху", slot: "armor", price: 0, armorN: 1, armor: "light", set: "echo", blurb: "Комплект хору." }),
-  it({ id: "a-reed-robe", name: "Ряса низин", slot: "armor", price: 0, armorN: 2, armor: "light", set: "reed", blurb: "Комплект очерету." }),
-  it({ id: "a-sluice-leather", name: "Шкіра шлюзу", slot: "armor", price: 0, armorN: 2, armor: "light", set: "sluice", blurb: "Комплект шлюзу." }),
-  it({ id: "a-nave-plate", name: "Обід світанку", slot: "armor", price: 0, armorN: 4, armor: "heavy", set: "nave", blurb: "Комплект нави." }),
-  it({ id: "t-cloak", name: "Плащ верби", slot: "trinket", price: 40, acc: 1, blurb: "Плащ дощу." }),
-  it({ id: "t-echo", name: "Печатка хору", slot: "trinket", price: 0, power: 2, blurb: "Відлуння." }),
-  it({ id: "t-bell", name: "Уламок язика", slot: "trinket", price: 0, power: 1, blurb: "Язик дзвона." }),
-  it({ id: "t-reed-knot", name: "Вузол очерету", slot: "trinket", price: 0, acc: 1, blurb: "Низини." }),
-  it({ id: "t-sluice-key", name: "Ключ шлюзу", slot: "trinket", price: 0, power: 1, blurb: "Сплячий шлюз." }),
-  it({ id: "t-nave-wax", name: "Воскова печатка", slot: "trinket", price: 0, power: 1, blurb: "Нава." }),
+  it({ id: "a-coat", name: "Плащ дощу", slot: "armor", price: 36, armorN: 2, armor: "light", rarity: "rare", stat: { end: 1, dex: 1 }, blurb: "Не гріє. Не дає воді назвати тебе." }),
+  it({ id: "a-vest", name: "Жилет варти", slot: "armor", price: 48, armorN: 3, armor: "medium", rarity: "rare", stat: { end: 2 }, blurb: "Середня вага, поки немає панцира." }),
+  it({ id: "t-salt", name: "Мішечок солі", slot: "trinket", price: 30, acc: 1, rarity: "rare", stat: { dex: 1 }, blurb: "Сіль на порозі. Трохи точніші руки." }),
+  it({ id: "t-rain", name: "Скляна крапля", slot: "trinket", price: 42, power: 1, rarity: "rare", stat: { wil: 1 }, blurb: "Пам’ять шлюзу. Воля трохи твердіша." }),
+  it({ id: "w-bow3", name: "Лук тракту", slot: "weapon", price: 70, power: 5, acc: 1, rarity: "rare", stat: { dex: 2, per: 1 }, heroes: ["archer"], blurb: "Тятива не розмокає." }),
+  it({ id: "w-sword2", name: "Меч брами", slot: "weapon", price: 68, power: 5, rarity: "rare", stat: { str: 2, end: 1 }, heroes: ["paladin"], blurb: "Брен такий не носить. Каже, що важкий." }),
+  it({ id: "w-axe2", name: "Сокира мулу", slot: "weapon", price: 72, power: 6, rarity: "rare", stat: { str: 2 }, heroes: ["barbarian"], blurb: "Рубає те, що вже не людина." }),
+  it({ id: "w-dagger2", name: "Ніж паламаря", slot: "weapon", price: 66, power: 5, acc: 1, rarity: "rare", stat: { dex: 2 }, heroes: ["assassin", "vampire"], blurb: "Для воску і для спини." }),
+  it({ id: "w-staff2", name: "Посох краплі", slot: "weapon", price: 74, power: 5, rarity: "rare", stat: { int: 2 }, heroes: ["sorceress", "herbalist"], blurb: "Перший дзвін, складений у дерево." }),
+  it({ id: "w-orb2", name: "Око шлюзу", slot: "weapon", price: 74, power: 5, rarity: "rare", stat: { wil: 2 }, heroes: ["witch"], blurb: "Дивиться туди, куди середній шлюз спить." }),
+  it({ id: "w-staff", name: "Посох іскри", slot: "weapon", price: 20, power: 3, rarity: "common", stat: { int: 1 }, heroes: ["sorceress"], blurb: "Стартовий посох." }),
+  it({ id: "w-sickle", name: "Серп трави", slot: "weapon", price: 18, power: 2, rarity: "common", stat: { wil: 1 }, heroes: ["herbalist"], blurb: "Стартовий серп." }),
+  it({ id: "w-bow", name: "Мисливський лук", slot: "weapon", price: 22, power: 3, acc: 1, rarity: "common", stat: { dex: 1 }, heroes: ["archer"], blurb: "Стартовий лук." }),
+  it({ id: "w-fang", name: "Ікло", slot: "weapon", price: 20, power: 3, rarity: "common", stat: { dex: 1 }, heroes: ["vampire"], blurb: "Стартове ікло." }),
+  it({ id: "w-axe", name: "Сокира варти", slot: "weapon", price: 22, power: 4, rarity: "common", stat: { str: 1 }, heroes: ["barbarian"], blurb: "Стартова сокира." }),
+  it({ id: "w-dagger", name: "Ніж тіні", slot: "weapon", price: 20, power: 3, acc: 1, rarity: "common", stat: { dex: 1 }, heroes: ["assassin"], blurb: "Стартовий ніж." }),
+  it({ id: "w-orb", name: "Око жаби", slot: "weapon", price: 20, power: 3, rarity: "common", stat: { wil: 1 }, heroes: ["witch"], blurb: "Стартове око." }),
+  it({ id: "w-sword", name: "Меч варти", slot: "weapon", price: 22, power: 3, rarity: "common", stat: { str: 1 }, heroes: ["paladin"], blurb: "Стартовий меч." }),
+  it({ id: "w-bow2", name: "Лук сови", slot: "weapon", price: 80, power: 5, acc: 1, rarity: "rare", stat: { dex: 2, per: 1 }, heroes: ["archer"], blurb: "Вербовий лук." }),
+  it({ id: "w-bow-night", name: "Нічний лук", slot: "weapon", price: 0, power: 6, acc: 1, rarity: "mythic", stat: { dex: 2, per: 1 }, heroes: ["archer"], blurb: "Здобич бурштину." }),
+  it({ id: "w-myth", name: "Струна відлуння", slot: "weapon", price: 0, power: 7, rarity: "legendary", stat: { int: 3, wil: 2 }, heroes: ["sorceress", "witch"], blurb: "З межі." }),
+  it({ id: "w-staff-reed", name: "Посох очерету", slot: "weapon", price: 0, power: 5, rarity: "mythic", stat: { int: 2, wil: 1 }, heroes: ["sorceress", "herbalist"], blurb: "Низини." }),
+  it({ id: "w-sickle-reed", name: "Серп низин", slot: "weapon", price: 0, power: 4, rarity: "mythic", stat: { wil: 2 }, heroes: ["herbalist"], blurb: "Очерет." }),
+  it({ id: "w-orb-reed", name: "Око низин", slot: "weapon", price: 0, power: 5, rarity: "mythic", stat: { wil: 2, int: 1 }, heroes: ["witch"], blurb: "Туман." }),
+  it({ id: "w-dagger-sluice", name: "Ніж мулу", slot: "weapon", price: 0, power: 5, acc: 1, rarity: "mythic", stat: { dex: 2 }, heroes: ["assassin", "vampire"], blurb: "Шлюз." }),
+  it({ id: "w-rapier-sluice", name: "Шпага броду", slot: "weapon", price: 0, power: 5, rarity: "mythic", stat: { dex: 2 }, heroes: ["vampire"], blurb: "Брід." }),
+  it({ id: "w-axe-nave", name: "Сокира нави", slot: "weapon", price: 0, power: 6, rarity: "legendary", stat: { str: 3, end: 1 }, heroes: ["barbarian"], blurb: "Нава." }),
+  it({ id: "w-sword-nave", name: "Меч світанку", slot: "weapon", price: 0, power: 6, rarity: "legendary", stat: { str: 3, wil: 1 }, heroes: ["paladin"], blurb: "Нава." }),
+  it({ id: "w-bow-nave", name: "Лук хору", slot: "weapon", price: 0, power: 6, rarity: "legendary", stat: { dex: 3, per: 1 }, heroes: ["archer"], blurb: "Хор." }),
+  it({ id: "a-cloth", name: "Ряса варти", slot: "armor", price: 24, armorN: 1, armor: "light", rarity: "common", stat: { end: 1 }, blurb: "Тонка тканина." }),
+  it({ id: "a-leather", name: "Шкіра варти", slot: "armor", price: 28, armorN: 2, armor: "light", rarity: "common", stat: { end: 1 }, blurb: "М'яка шкіра." }),
+  it({ id: "a-mail", name: "Кільця варти", slot: "armor", price: 36, armorN: 3, armor: "medium", rarity: "rare", stat: { end: 2, str: 1 }, blurb: "Важка кольчуга." }),
+  it({ id: "a-plate", name: "Панцир варти", slot: "armor", price: 44, armorN: 4, armor: "heavy", rarity: "rare", stat: { end: 2, str: 1 }, blurb: "Плита." }),
+  it({ id: "a-willow-hide", name: "Вербова шкіра", slot: "armor", price: 0, armorN: 2, armor: "light", set: "willow", rarity: "mythic", stat: { end: 1, dex: 1 }, blurb: "Комплект верби." }),
+  it({ id: "a-echo-veil", name: "Вуаль другого слуху", slot: "armor", price: 0, armorN: 1, armor: "light", set: "echo", rarity: "mythic", stat: { wil: 2, int: 1 }, blurb: "Комплект хору." }),
+  it({ id: "a-reed-robe", name: "Ряса низин", slot: "armor", price: 0, armorN: 2, armor: "light", set: "reed", rarity: "mythic", stat: { wil: 1, end: 1 }, blurb: "Комплект очерету." }),
+  it({ id: "a-sluice-leather", name: "Шкіра шлюзу", slot: "armor", price: 0, armorN: 2, armor: "light", set: "sluice", rarity: "mythic", stat: { dex: 2 }, blurb: "Комплект шлюзу." }),
+  it({ id: "a-nave-plate", name: "Обід світанку", slot: "armor", price: 0, armorN: 4, armor: "heavy", set: "nave", rarity: "legendary", stat: { end: 3, str: 2 }, blurb: "Комплект нави." }),
+  it({ id: "t-cloak", name: "Плащ верби", slot: "trinket", price: 40, acc: 1, rarity: "rare", stat: { dex: 1 }, blurb: "Плащ дощу." }),
+  it({ id: "t-echo", name: "Печатка хору", slot: "trinket", price: 0, power: 2, rarity: "legendary", stat: { int: 2, wil: 1 }, blurb: "Відлуння." }),
+  it({ id: "t-bell", name: "Уламок язика", slot: "trinket", price: 0, power: 1, rarity: "mythic", stat: { wil: 1 }, blurb: "Язик дзвона." }),
+  it({ id: "t-reed-knot", name: "Вузол очерету", slot: "trinket", price: 0, acc: 1, rarity: "mythic", stat: { dex: 1, wil: 1 }, blurb: "Низини." }),
+  it({ id: "t-sluice-key", name: "Ключ шлюзу", slot: "trinket", price: 0, power: 1, rarity: "mythic", stat: { dex: 1 }, blurb: "Сплячий шлюз." }),
+  it({ id: "t-nave-wax", name: "Воскова печатка", slot: "trinket", price: 0, power: 1, rarity: "mythic", stat: { wil: 1, end: 1 }, blurb: "Нава." }),
 ];
 
 export function itemById(id: string) {
   return ITEMS.find((i) => i.id === id);
+}
+
+export function itemFacts(it: Item) {
+  const bits: string[] = [];
+  if ((it.slot === "weapon" || it.slot === "trinket") && it.power) bits.push(`Урон +${it.power}`);
+  if (it.armorN) bits.push(`Захист +${it.armorN}`);
+  if (it.acc) bits.push(`Точність +${it.acc}`);
+  if (it.stat) {
+    for (const k of STATS) {
+      const n = it.stat[k];
+      if (n) bits.push(`${STAT_LABEL[k]} +${n}`);
+    }
+  }
+  if (it.heal) bits.push(`Життя +${it.heal}`);
+  if (it.focus) bits.push(`SP +${it.focus}`);
+  if (it.rarity) bits.unshift(RARITY_LABEL[it.rarity]);
+  return bits.join(" · ");
 }
 
 const STARTER: Record<HeroId, string> = {
