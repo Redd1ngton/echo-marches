@@ -4,12 +4,9 @@
 
 ## Cloudflare
 
-```bash
-npm install
-npm run build:cf
-npx wrangler deploy
-```
+У панелі Workers залиш як є:
 
-`build:cf` збирає Nitro з пресетом `cloudflare-module`. Звичайний `npm run build` лишається під Vercel.
+- Build command: `npm run build`
+- Deploy command: `npx wrangler deploy`
 
-У панелі Cloudflare Workers потрібен compatibility flag `nodejs_compat` (він уже в `wrangler.jsonc`).
+`npm run build` збирає Nitro з пресетом Cloudflare у `.output/`. Прапор `nodejs_compat` уже в `wrangler.jsonc`. Ім’я воркера — `echo`.
